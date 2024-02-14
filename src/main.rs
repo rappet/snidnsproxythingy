@@ -53,7 +53,10 @@ async fn main() -> Result<()> {
 
 async fn handle_client_connection(mut client_stream: TcpStream, config: Arc<Opts>) -> Result<()> {
     let mut buffer = vec![0u8; 4096];
-    let len = client_stream.read(&mut buffer).await.unwrap();
+    let len = client_stream
+        .read(&mut buffer)
+        .await
+        .context("failed reading TLS header from stream")?;
     buffer.truncate(len);
 
     let sni = {
@@ -72,7 +75,10 @@ async fn handle_client_connection(mut client_stream: TcpStream, config: Arc<Opts
         bail!("SNI name {sni:?} is not found in host allowlist")
     }
 
-    let addrs: Vec<_> = lookup_host(format!("{}:443", sni)).await.unwrap().collect();
+    let addrs: Vec<_> = lookup_host(format!("{}:443", sni))
+        .await
+        .with_context(|| format!("no DNS entry for {sni:?}"))?
+        .collect();
     println!("{addrs:?}");
     let addr = addrs
         .iter()
